@@ -1,0 +1,15 @@
+{
+  "name": "zoom-webhook-vercel",
+  "version": "1.0.0",
+  "description": "Webhook para integração Cardapio.ai com Firebase",
+  "main": "api/webhook.js",
+  "dependencies": {
+    "firebase": "^10.7.1"
+  },
+  "scripts": {
+    "dev": "vercel dev"
+  },
+  "engines": {
+    "node": "18.x"
+  }
+}
