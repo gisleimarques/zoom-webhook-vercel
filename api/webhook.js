@@ -3,47 +3,53 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
-  if (req.method === 'GET') {
-    return res.status(200).json({ 
-      status: 'Webhook funcionando!',
-      timestamp: new Date().toISOString()
-    });
-  }
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Método não permitido' });
-  }
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method === 'GET') return res.status(200).json({ status: 'OK' });
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
     const dados = req.body;
-    console.log('=== WEBHOOK RECEBIDO ===');
-    console.log('Dados:', JSON.stringify(dados, null, 2));
-    
-    // Teste básico - só retorna os dados sem Firebase por enquanto
-    const produtoId = dados.id || dados.product_id || `teste_${Date.now()}`;
-    const produtoNome = dados.name || dados.nome || 'Produto Teste';
-    
-    console.log('Produto processado:', { produtoId, produtoNome });
+    console.log('=== WEBHOOK RECEBIDO ===', dados);
 
-    return res.status(200).json({ 
-      success: true,
-      message: 'Webhook recebido e processado',
-      produtoId,
-      produtoNome,
-      dadosRecebidos: dados,
-      timestamp: new Date().toISOString()
+    // Usar fetch para chamar a REST API do Firebase
+    const produtoId = dados.id || `teste_${Date.now()}`;
+    const produtoNome = dados.name || 'Produto Teste';
+    const preco = dados.price || 25.99;
+
+    const firebaseURL = `https://firestore.googleapis.com/v1/projects/zoomsorveteria/databases/(default)/documents/cardapio/${produtoId}`;
+    
+    const firebaseDoc = {
+      fields: {
+        codigo: { stringValue: produtoId },
+        nome: { stringValue: produtoNome },
+        preco: { doubleValue: preco },
+        tipo: { stringValue: 'unidade' },
+        ativo: { booleanValue: true },
+        origem: { stringValue: 'webhook' },
+        updatedAt: { timestampValue: new Date().toISOString() }
+      }
+    };
+
+    const response = await fetch(firebaseURL, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(firebaseDoc)
     });
+
+    if (response.ok) {
+      console.log('✅ Produto salvo no Firebase');
+      return res.status(200).json({ 
+        success: true, 
+        message: 'Produto salvo com sucesso',
+        produtoId,
+        produtoNome
+      });
+    } else {
+      throw new Error(`Firebase error: ${response.status}`);
+    }
 
   } catch (error) {
-    console.error('ERRO no webhook:', error);
-    return res.status(500).json({ 
-      error: 'Erro interno',
-      details: error.message,
-      stack: error.stack
-    });
+    console.error('❌ Erro:', error);
+    return res.status(500).json({ error: error.message });
   }
 }
